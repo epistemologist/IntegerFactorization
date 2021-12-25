@@ -54,3 +54,57 @@ def is_prime(N: int) -> bool:
         return naive_is_prime(N)
     else:
         return miller_rabin(N, 50)
+
+def is_perfect_power(N: int, n: int) -> bool:
+     # Returns whether or not there exists an x s.t. N = x^n
+     # Extract kth root of N using binary search
+     def _integer_root(n,k, max_iter = 10000):
+          hi = 1
+          while pow(hi, k) < n: hi *= 2
+          lo = hi // 2
+          num_iter = 0
+          while num_iter < max_iter:
+              mid = (lo + hi) // 2
+              tmp = pow(mid, k)
+              if tmp == n:
+                  return (mid, mid)
+              if hi-lo == 1:
+                  break
+              num_iter += 1
+              if tmp < n:
+                  lo = mid
+              else:
+                  hi = mid
+          return (lo, hi)
+     lo, hi = _integer_root(N, n)
+     return pow(lo, n) == N or pow(hi, n) == N
+
+# Simple utility class to represent integers mod prime
+class ModN:
+    def __init__(self, n: int, p: int):
+        self.n = n
+        self.p = p
+    def _shares_modulus(self, other):
+        return isinstance(other, ModN) and self.p == other.p
+    def __eq__(self, other):
+        if type(other) == int: other = ModN(other, self.n)
+        return self._shares_modulus(other) and self.n % self.p == other.n % other.p
+    def __pow__(self, other):
+        if type(other) != int: raise ValueError("cannot raise number to non-integer exponent")
+        return ModN(pow(self.n, other, self.p), self.p)
+    def __repr__(self):
+        return str(self.n)
+
+def _create_internal_fn(self, other, func):
+    if type(other) == int: other = ModN(other, self.p)
+    if not self._shares_modulus(other): raise ValueError("Cannot do operation!")
+    return func(self, other)
+
+ModN.__add__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n + o.n) % s.p,s.p))
+ModN.__radd__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n + s.n) % s.p,s.p))
+ModN.__sub__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n - o.n) % s.p,s.p))
+ModN.__rsub__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n - s.n) % s.p,s.p))
+ModN.__mul__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n * o.n) % s.p,s.p))
+ModN.__rmul__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n * s.n) % s.p,s.p))
+ModN.__truediv__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n * pow(o.n, -1, s.p)) % s.p,s.p))
+ModN.__rtruediv__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n * pow(s.n, -1, s.p) % s.p,s.p)))

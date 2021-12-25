@@ -22,7 +22,6 @@ class PM1(Factorizer):
                 for i in range(int(log(B1,q))):
                     a_Q = pow(a_Q, q, N)
             g = gcd(a_Q-1, N)
-            print(a, g, a_Q, pow(a, LCM(range(1, B1+1)),N))
             if g in [1, N]:
                 # Stage 2
                 prime_differences = [j-i for i,j in zip(large_primes, large_primes[1:])]
