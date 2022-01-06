@@ -1,13 +1,12 @@
 from math import log
 from typing import List, Tuple
 from random import randint
-from tqdm import tqdm
 import prime_sieve as sieve
 
 try:
     import gmpy2
     GMPY_IMPORT = True
-    Int = gmpy2.mpz
+    Int = lambda n: gmpy2.mpz(int(n))
 except:
     GMPY_IMPORT = False
     Int = int
@@ -69,6 +68,31 @@ def legendre(N: int, p: int) -> int:
     # Using Euler's criterion
     N_over_p = pow(N, (p-1) // 2, p)
     return 1 if N_over_p == 1 else -1
+
+def tonelli_shanks(N: int, p: int) -> int:
+    # Assuming p is prime
+    # returns x s.t. x^2 = N (mod p)
+    # implementation from https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm#The_algorithm
+    S, Q = extract_power_of_2(p-1)
+    z = 2
+    while legendre(z, p) != -1:
+        z = randint(2, p-1)
+    M = S
+    c = pow(z,Q,p)
+    t = pow(N,Q,p)
+    R = pow(N,(Q+1)//2,p)
+    while True:
+        if t == 0: return 0
+        if t == 1: return R
+        tmp = t
+        for i in range(M):
+            tmp = (tmp * tmp) % p
+            if tmp == 1: break
+        b = pow(c, 2**(M-i-1), p)
+        M = i
+        c = b*b
+        t = t*b*b
+        R = R*b
 
 def is_perfect_power(N: int, n: int) -> bool:
      # Returns whether or not there exists an x s.t. N = x^n
