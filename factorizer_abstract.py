@@ -5,6 +5,11 @@ from math import prod
 
 from utility import is_prime
 
+try:
+    from gmpy2 import mpz as _int
+except:
+    _int = int
+
 class FactorList:
     def __init__(self, l):
         if type(l) == dict:
@@ -28,7 +33,7 @@ class FactorList:
 
 class Factorizer(ABC):
     def __init__(self, N):
-        self.N = N
+        self.N = _int(N)
 
     @abstractmethod
     def factor(self, **args) -> FactorList:

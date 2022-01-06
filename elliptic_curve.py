@@ -1,28 +1,78 @@
 from collections import namedtuple
-from typing import Optional
+from typing import Optional, Tuple
+from random import randint
+from utility import ModN, GMPY_IMPORT
 
 class EllipticCurve(namedtuple("EllpticCurve", ["p", "a", "b"])):
     def __init__(self, p: int, a: int, b: int):
+        # Assert curve is not singular
         assert (4*a**3 + 27*b**2) % p != 0
-        super().__init__(p,a,b)
+        super().__init__()
+    def random_point(self) -> Tuple[Int, Int]:
+        x = randint(0, self.p-1)
 
-class EllipticCurvePoint:
-    def __init__(self, curve: EllipticCurve, x: Optional[int], y: Optional[int]):
-        p,a,b = curve.p, curve.a, curve.b
-        # Point at infinity represented by (x,y) = (None, None)
-        assert (x == None and y == None) or (y**2 - (x**3 + a*x + b)) % p == 0
+
+class EllipticCurveAffinePoint:
+    def __init__(self, curve: EllipticCurve, x,y, is_infinite=False):
         self.curve = curve
-        self.x = x
-        self.y = y
-    def is_infinity(self):
-        return self.x == None and self.y == None
+        self.x = ModN(x, curve.p)
+        self.y = ModN(y, curve.p)
+        self.is_infinite = is_infinite
+        a,b = curve.a, curve.b
+        assert self.x**3 + a*self.x + b == self.y**2
+    def __repr__(self):
+        return "O" if self.is_infinite else f"({self.x}, {self.y})"
+    def __iter__(self):
+        return iter((self.x, self.y, self.is_infinite))
     def __add__(self, other):
-        if not(isinstance(other, EllipticCurvePoint)):
-            raise ValueError("type error!")
-        if self.is_infinity():
-            return other
-        if other.is_infinity():
-            return self
-        x1, y1 = self.x, self.y
-        x2, y2 = other.x, other.y
-        if (x1 == x2 and y2 == -y1)
+        assert type(other) == EllipticCurveAffinePoint
+        return affine_add(self, other)
+    def __sub__(self, other):
+        assert type(other) == EllipticCurveAffinePoint
+        return affine_add(self, affine_neg(other))
+    def __mul__(self, other):
+        assert type(other) == int
+        return affine_mul(self, other)
+    def __rmul__(self, other):
+        assert type(other) == int
+        return affine_mul(self, other)
+
+# See "Prime Numbers: A Computational Perspective", Algorithm 7.2.2 for implementation details
+
+def affine_add(p1: EllipticCurveAffinePoint, p2: EllipticCurveAffinePoint) -> EllipticCurveAffinePoint:
+    x1, y1, p1_infinite = tuple(p1)
+    x2, y2, p2_infinite = tuple(p2)
+    assert p1.curve == p2.curve
+    a = p1.curve.a
+    if p1_infinite: return p2
+    if p2_infinite: return p1
+    if x1 == x2:
+        if y1 + y2 == 0: return EllipticCurveAffinePoint(0,0,is_infinite=True)
+        m = (3*x1*x1 + a) / (2*y1)
+    else:
+        m = (y2 - y1) / (x2 - x1)
+    x3 = m*m - x1 - x2
+    return EllipticCurveAffinePoint(p1.curve, x3, m*(x1-x3)-y1)
+
+def affine_neg(p: EllipticCurveAffinePoint) -> EllipticCurveAffinePoint:
+    x, y, is_infinite = tuple(p)
+    return EllipticCurvePoint(p.curve,x,-y,is_infinite=is_infinite)
+
+def affine_mul(x: EllipticCurveAffinePoint, n: int) -> EllipticCurveAffinePoint:
+    # Multiplication by doubling
+    y = EllipticCurveAffinePoint(0,0,is_infinite=True)
+    if n == 0: return y
+    while n > 1:
+        if n % 2 == 0:
+            x = x+x
+            n //= 2
+        else:
+            y = x+y
+            x = x+x
+            n = (n-1) // 2
+    return x+y
+
+def test():
+    curve = EllipticCurve(31, 3, 5)
+    pt = EllipticCurveAffinePoint(curve, 2, 22)
+    return  pt + pt

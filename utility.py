@@ -4,6 +4,14 @@ from random import randint
 from tqdm import tqdm
 import prime_sieve as sieve
 
+try:
+    import gmpy2
+    GMPY_IMPORT = True
+    Int = gmpy2.mpz
+except:
+    GMPY_IMPORT = False
+    Int = int
+
 def get_primes(N: int) -> List[int]:
     # Returns all primes p such that 1 < p <= N
     if N < 10**6:
@@ -55,6 +63,13 @@ def is_prime(N: int) -> bool:
     else:
         return miller_rabin(N, 50)
 
+def legendre(N: int, p: int) -> int:
+    # Assuming p is prime
+    if N % p == 0: return 0
+    # Using Euler's criterion
+    N_over_p = pow(N, (p-1) // 2, p)
+    return 1 if N_over_p == 1 else -1
+
 def is_perfect_power(N: int, n: int) -> bool:
      # Returns whether or not there exists an x s.t. N = x^n
      # Extract kth root of N using binary search
@@ -80,31 +95,53 @@ def is_perfect_power(N: int, n: int) -> bool:
      return pow(lo, n) == N or pow(hi, n) == N
 
 # Simple utility class to represent integers mod prime
+
+def inv(n, p):
+    if not GMPY_IMPORT:
+        try:
+            return pow(n, -1, p)
+        except:
+            raise ValueError(f"given n ({n}) is not invertible given base {p}")
+    else:
+        import gmpy2
+        out = gmpy2.invert(n, p)
+        if out == 0:
+            raise ValueError(f"given n ({n}) is not invertible given base {p}")
+        else:
+            return out
+
+def _create_internal_fn(func):
+    def wrapped(self, other):
+        if type(other) == int: other = ModN(other, self.p)
+        if not self._shares_modulus(other): raise ValueError("Cannot do operation!")
+        return func(self, other)
+    return wrapped
+
+
 class ModN:
     def __init__(self, n: int, p: int):
-        self.n = n
-        self.p = p
+        self.n = Int(n) % Int(p)
+        self.p = Int(p)
     def _shares_modulus(self, other):
         return isinstance(other, ModN) and self.p == other.p
     def __eq__(self, other):
-        if type(other) == int: other = ModN(other, self.n)
+        if type(other) == int: other = ModN(other, self.p)
         return self._shares_modulus(other) and self.n % self.p == other.n % other.p
     def __pow__(self, other):
         if type(other) != int: raise ValueError("cannot raise number to non-integer exponent")
         return ModN(pow(self.n, other, self.p), self.p)
     def __repr__(self):
         return str(self.n)
+    def __hash__(self):
+        return hash(self.n)
+    def __int__(self):
+        return int(self.n)
 
-def _create_internal_fn(self, other, func):
-    if type(other) == int: other = ModN(other, self.p)
-    if not self._shares_modulus(other): raise ValueError("Cannot do operation!")
-    return func(self, other)
-
-ModN.__add__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n + o.n) % s.p,s.p))
-ModN.__radd__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n + s.n) % s.p,s.p))
-ModN.__sub__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n - o.n) % s.p,s.p))
-ModN.__rsub__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n - s.n) % s.p,s.p))
-ModN.__mul__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n * o.n) % s.p,s.p))
-ModN.__rmul__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n * s.n) % s.p,s.p))
-ModN.__truediv__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((s.n * pow(o.n, -1, s.p)) % s.p,s.p))
-ModN.__rtruediv__ = lambda x,y: _create_internal_fn(x,y,lambda s,o: ModN((o.n * pow(s.n, -1, s.p) % s.p,s.p)))
+ModN.__add__ = _create_internal_fn(lambda s,o: ModN((s.n + o.n) % s.p,s.p))
+ModN.__radd__ = _create_internal_fn(lambda s,o: ModN((o.n + s.n) % s.p,s.p))
+ModN.__sub__ = _create_internal_fn(lambda s,o: ModN((s.n - o.n) % s.p,s.p))
+ModN.__rsub__ = _create_internal_fn(lambda s,o: ModN((o.n - s.n) % s.p,s.p))
+ModN.__mul__ = _create_internal_fn(lambda s,o: ModN((s.n * o.n) % s.p,s.p))
+ModN.__rmul__ = _create_internal_fn(lambda s,o: ModN((o.n * s.n) % s.p,s.p))
+ModN.__truediv__ = _create_internal_fn(lambda s,o: ModN((s.n * inv(o.n, s.p)) % s.p,s.p))
+ModN.__rtruediv__ = _create_internal_fn(lambda s,o: ModN((o.n * inv(s.n, s.p) % s.p,s.p)))
