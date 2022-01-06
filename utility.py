@@ -120,24 +120,33 @@ def is_perfect_power(N: int, n: int) -> bool:
 
 # Simple utility class to represent integers mod prime
 
+# Custom exception to raise in case of failed inversion (for ECM factoring)
+
+class InversionError(Exception):
+    def __init__(self, n, p):
+        self.n = n
+        self.p = p
+        super().__init__(f"given n ({n}) is not invertible given base {p}")
+
 def inv(n, p):
     if not GMPY_IMPORT:
         try:
             return pow(n, -1, p)
         except:
-            raise ValueError(f"given n ({n}) is not invertible given base {p}")
+            raise InversionError(n, p)
     else:
         import gmpy2
-        out = gmpy2.invert(n, p)
-        if out == 0:
-            raise ValueError(f"given n ({n}) is not invertible given base {p}")
-        else:
-            return out
+        try:
+            return gmpy2.invert(n, p)
+        except:
+            raise InversionError(n, p)
 
 def _create_internal_fn(func):
     def wrapped(self, other):
-        if type(other) == int: other = ModN(other, self.p)
-        if not self._shares_modulus(other): raise ValueError("Cannot do operation!")
+        if type(other) != ModN: other = ModN(other, self.p)
+        if not self._shares_modulus(other):
+            print(type(self), type(other))
+            raise ValueError("Cannot do operation!")
         return func(self, other)
     return wrapped
 
