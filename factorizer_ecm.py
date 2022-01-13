@@ -1,3 +1,4 @@
+from bisect import bisect_left, bisect_right
 from collections import namedtuple
 from math import log, gcd
 from factorizer_abstract import Factorizer, FactorList
@@ -53,6 +54,7 @@ def point_multiplication(curve: Curve, P: ProjectivePoint, n: int) -> Projective
 
 class ECM(Factorizer):
     def factor(self, B1 = 10000, B2 = 50000, D = 100, num_curves = 100):
+        print("Generating primes...")
         assert B1 % 2 == 0 and B2 % 2 == 0
         N = self.N
         while N % 2 == 0:
@@ -61,7 +63,7 @@ class ECM(Factorizer):
             N //= 6
         power_ladder = { p: int(log(B1, p)) for p in get_primes(B1)} # Used in stage 1
         primes = get_primes(B2 + 2*D) # Used in stage 2
-        prime_map = {r: [q for q in primes if r+2 <= q <= r+2*D] for r in range(B1-1, B2, 2*D) }
+        prime_map = {r: primes[bisect_left(primes, r+2):bisect_right(primes, r+2*D)] for r in range(B1-1, B2, 2*D)}
         # Implementation of Algorithm 7.4.4
         def _process_curve(seed): # Here, seed is sigma
             u = ModN(seed*seed - 5, N)
