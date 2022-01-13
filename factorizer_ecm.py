@@ -1,6 +1,11 @@
 from bisect import bisect_left, bisect_right
 from collections import namedtuple
 from math import log, gcd
+from random import randint
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import cpu_count
+
 from factorizer_abstract import Factorizer, FactorList
 from utility import ModN, get_primes
 
@@ -53,8 +58,10 @@ def point_multiplication(curve: Curve, P: ProjectivePoint, n: int) -> Projective
     return double_h(curve, U)
 
 class ECM(Factorizer):
-    def factor(self, B1 = 10000, B2 = 50000, D = 100, num_curves = 100):
+    def factor(self, B1 = 10000, B2 = 1000000, D = 100, num_curves = 100, threaded = True, verbose = True):
         print("Generating primes...")
+        if verbose:
+            pbar = tqdm(total = num_curves)
         assert B1 % 2 == 0 and B2 % 2 == 0
         N = self.N
         while N % 2 == 0:
@@ -78,19 +85,19 @@ class ECM(Factorizer):
             g = gcd(int(Q.Z), N)
             if 1 < g < N: return g
             # Stage 2
-            S1 = double_h(Q)
-            S2 = double_h(S1)
+            S1 = double_h(curve, Q)
+            S2 = double_h(curve, S1)
             S = [None, S1, S2]
             beta = [None]
             for d in range(1, D+1):
                 if d > 2:
-                    S.append(add_h(C, S[d-1], S[1], S[d-2]))
+                    S.append(add_h(curve, S[d-1], S[1], S[d-2]))
                 curr_S = S[d]
-                beta.append( curr_S.X * curr_S*Z )
+                beta.append( curr_S.X * curr_S.Z )
             g = ModN(1, N)
-            B = B1 - 1
-            T = point_multiplication(curve, Q, B - 2*D)
-            R = point_multiplication(curve, B, Q)
+            B0 = B1 - 1
+            T = point_multiplication(curve, Q, B0 - 2*D)
+            R = point_multiplication(curve, Q, B0)
             for r in prime_map:
                 alpha = R.X * R.Z
                 for q in prime_map[r]:
@@ -98,10 +105,18 @@ class ECM(Factorizer):
                     S_delta = S[delta]
                     # g = g((X(R) - X(S_d))(Z(R) + Z(S_d))-a+b_d)
                     g *= (R.X - S_delta.X) * (R.Z + S_delta.Z) - alpha + beta[delta]
-                R, T =add_h(R, S[D], T),R
-            g = gcd(int(g),n)
+                R, T = add_h(curve, R, S[D], T),R
+            g = gcd(int(g),N)
             if 1 < g < n: return g
             else: return None
-        for i in range(6, num_curves+6):
-            temp = _process_curve(i)
-            if temp: return temp
+        if threaded:
+            with ThreadPoolExecutor(max_workers = cpu_count()) as executor:
+                futures = [executor.submit(_process_curve, randint(6, N-1)) for _ in range(num_curves)]
+                for future in as_completed(futures):
+                    temp = future.result()
+                    if temp: return temp
+                    if pbar: pbar.update(1)
+        else:
+            for _ in tqdm(range(num_curves)):
+                temp = _process_curve(randint(6, N-1))
+                if temp: return temp
