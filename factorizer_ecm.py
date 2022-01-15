@@ -19,9 +19,9 @@ ProjectivePoint = namedtuple("ProjectivePoint", ["X", "Z"])
 def add_h(curve: Curve, P1: ProjectivePoint, P2: ProjectivePoint, Pminus: ProjectivePoint) -> ProjectivePoint:
     (A,B,C), (X1, Z1), (X2, Z2), (Xminus, Zminus) = curve, P1, P2, Pminus
     if X1 == Z1 == 0:
-        return (X2, Z2)
+        return ProjectivePoint(X2, Z2)
     if X2 == Z2 == 0:
-        return (X1, Z1)
+        return ProjectivePoint(X1, Z1)
     tmp = X1*X2 - A*Z1*Z2
     Xplus = Zminus*(tmp*tmp - 4*B*Z1*Z2*(X1*Z2 + X2*Z1 + C*Z1*Z2))
     tmp2 = X1*Z2 - X2*Z1
@@ -58,7 +58,7 @@ def point_multiplication(curve: Curve, P: ProjectivePoint, n: int) -> Projective
     return double_h(curve, U)
 
 class ECM(Factorizer):
-    def factor(self, B1 = 10000, B2 = 1000000, D = 100, num_curves = 100, threaded = True, verbose = True):
+    def factor(self, B1 = 10000, B2 = 1000000, D = 100, num_curves = 100, threaded = False, verbose = True):
         print("Generating primes...")
         if verbose:
             pbar = tqdm(total = num_curves)
@@ -84,7 +84,7 @@ class ECM(Factorizer):
                 Q = point_multiplication(curve, Q, p**e)
             g = gcd(int(Q.Z), N)
             if 1 < g < N: return g
-            # Stage 2
+            # Stage 2i
             S1 = double_h(curve, Q)
             S2 = double_h(curve, S1)
             S = [None, S1, S2]
@@ -103,11 +103,10 @@ class ECM(Factorizer):
                 for q in prime_map[r]:
                     delta = (q-r) // 2
                     S_delta = S[delta]
-                    # g = g((X(R) - X(S_d))(Z(R) + Z(S_d))-a+b_d)
                     g *= (R.X - S_delta.X) * (R.Z + S_delta.Z) - alpha + beta[delta]
                 R, T = add_h(curve, R, S[D], T),R
             g = gcd(int(g),N)
-            if 1 < g < n: return g
+            if 1 < g < N: return g
             else: return None
         if threaded:
             with ThreadPoolExecutor(max_workers = cpu_count()) as executor:
