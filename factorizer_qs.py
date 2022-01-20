@@ -4,7 +4,6 @@ from collections import defaultdict, OrderedDict
 from tqdm import tqdm
 from itertools import count
 from typing import Optional
-from galois import GF
 
 from factorizer_abstract import Factorizer, FactorList
 from utility import get_primes, legendre, tonelli_shanks, isqrt
@@ -36,6 +35,7 @@ class QuadraticSieve(Factorizer):
     def factor(self):
         # Initialize
         N = self.N
+        print(N)
         B = isqrt(L(N)) + 1 # We can modify this later
         primes = [p for p in get_primes(B) if p % 2 == 1 and legendre(N, p) == 1]
         square_roots = {}
@@ -89,9 +89,37 @@ class QuadraticSieve(Factorizer):
         for c in candidates:
             factorization = candidates[c].to_dict()
             exponent_vectors.append([factorization[p] % 2 for p in primes ])
-        return exponent_vectors
+	# Inspired by https://github.com/mikolajsawicki/quadratic-sieve/blob/main/quadratic_sieve/fast_gauss.py
+        # Also referred to https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
+        M = np.vstack(exponent_vectors)
+        print(f"M: {M}")
+        def _to_rref(M):
+            n,m = M.shape
+            marked = []
+            for j in range(m):
+                print(j)
+                i = 0
+                while i < n and M[i,j] != 1:
+                    i += 1
+                if i == n:
+                    continue
+                else:
+                    marked.append(i)
+                    for k in range(m):
+                        if k != j:
+                            if M[i, k] == 1:
+                                M[:, k] ^= M[:, j]
+            return marked
+        marked = _to_rref(M)
+        print(f"marked: {marked}")
+        dependent_index = [i for i in range(len(M)) if i not in marked][0]
+        print(f"dependent index: {dependent_index}")
+        basis = [dependent_index]
+        ones_cols = np.where(M[dependent_index] == 1)[0]
+        print(f"ones_cols: {ones_cols}")
+        basis.extend([ np.where(M[:, j] == 1)[0][0] for j in ones_cols ])
 
 
 N = 8754660968220887821
 # N = 1413409093
-x = QuadraticSieve(N).factor()
+print(QuadraticSieve(N).factor())
