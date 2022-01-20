@@ -3,8 +3,8 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 from tqdm import tqdm
 from itertools import count
-from typing import Optional
-
+from typing import Optional, List
+from math import prod, gcd
 from factorizer_abstract import Factorizer, FactorList
 from utility import get_primes, legendre, tonelli_shanks, isqrt
 
@@ -23,12 +23,6 @@ def sqrt_mod_p_squared(n, p):
         for root in [x, -x%p]
     ]
 
-
-def gaussian_elimination(M):
-    m, n = M.shape
-    h = k = 0
-    while h < m and k < n:
-        max( range(h, m+1), key = lambda i: M[i, k]  )
 
 # Vanilla quadratic sieve
 class QuadraticSieve(Factorizer):
@@ -71,12 +65,13 @@ class QuadraticSieve(Factorizer):
             candidate_indices = np.argpartition(sieve, CANDIDATE_LENGTH)[:CANDIDATE_LENGTH]
             candidates_out = dict()
             for x in candidate_indices:
+                x = int(x)
                 candidate = (x+chunk_start)*(x+chunk_start) - N
                 factorization = _is_smooth(candidate)
                 if factorization is not None: candidates_out[candidate] = factorization
             return candidates_out
 
-        candidates = dict()
+        candidates = dict() # dict of {x: x^2 - N} s.t. x^2-N is smooth
         for chunk_start in count(isqrt(N)+1, BLOCK_LENGTH):
             candidates.update(_process_chunk(chunk_start))
             print(len(candidates))
@@ -118,8 +113,25 @@ class QuadraticSieve(Factorizer):
         ones_cols = np.where(M[dependent_index] == 1)[0]
         print(f"ones_cols: {ones_cols}")
         basis.extend([ np.where(M[:, j] == 1)[0][0] for j in ones_cols ])
-
+        # Factorization step
+        x_s = []
+        y_s = []
+        C = list(candidates.keys())
+        for b in basis:
+            x_s.append(C[b])
+            y_s.append(candidates[C[b]])
+        def _sqrt_prod( nums: List[FactorList] ) -> FactorList:
+            out = defaultdict(int)
+            for n in nums:
+                for p in n:
+                    out[p] += n[p]
+            if any([i % 2 != 0 for i in out.values()]): raise ValueError("not perfect square!")
+            return FactorList({ p: (out[p]) // 2 for p in out })
+        x = prod(x_s)
+        y = _sqrt_prod(y_s).prod()
+        d = gcd(x-y, N)
+        return d
 
 N = 8754660968220887821
 # N = 1413409093
-print(QuadraticSieve(N).factor())
+x_s, y_s = QuadraticSieve(N).factor()
