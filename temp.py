@@ -1,3 +1,4 @@
+"""
 from collections import defaultdict
 from utility import get_primes
 from tqdm import tqdm
@@ -19,4 +20,17 @@ for p in tqdm(primes):
         prime_map2[r].append(p)
     else:
         r = next(r_s)
+"""
+
+from utility import tonelli_shanks
+
+def sqrt_mod_p_squared(n, p):
+    # Based on https://mathoverflow.net/a/223806
+    x = tonelli_shanks(n, p)
+    if x is None:
+        return None
+    roots = []
+    for root in [x, -x%p]:
+        roots.append((pow(root, p, p*p) * pow(n, (p*p-p+1) // 2, p*p)) % (p*p))
+    return roots
 

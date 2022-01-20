@@ -30,7 +30,8 @@ class FactorList:
             for p,e in sorted(self.factor_list.items(),
                               key = lambda x: x[0])
         ])
-
+    def to_dict(self):
+        return defaultdict(int, self.factor_list)
 class Factorizer(ABC):
     def __init__(self, N):
         self.N = _int(N)

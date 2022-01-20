@@ -1,4 +1,4 @@
-from math import log
+from math import log, sqrt
 from typing import List, Tuple
 from random import randint
 import prime_sieve as sieve
@@ -66,33 +66,41 @@ def legendre(N: int, p: int) -> int:
     # Assuming p is prime
     if N % p == 0: return 0
     # Using Euler's criterion
+    N %= p
     N_over_p = pow(N, (p-1) // 2, p)
     return 1 if N_over_p == 1 else -1
 
 def tonelli_shanks(N: int, p: int) -> int:
     # Assuming p is prime
     # returns x s.t. x^2 = N (mod p)
-    # implementation from https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm#The_algorithm
-    S, Q = extract_power_of_2(p-1)
-    z = 2
-    while legendre(z, p) != -1:
-        z = randint(2, p-1)
-    M = S
-    c = pow(z,Q,p)
-    t = pow(N,Q,p)
-    R = pow(N,(Q+1)//2,p)
-    while True:
-        if t == 0: return 0
-        if t == 1: return R
-        tmp = t
-        for i in range(M):
-            tmp = (tmp * tmp) % p
-            if tmp == 1: break
-        b = pow(c, 2**(M-i-1), p)
-        M = i
-        c = b*b
-        t = t*b*b
-        R = R*b
+    # implementation of Algorithm 2.3.8 from Prime Numbers: A Computational Perspective
+    N %= p
+    if legendre(N, p) != 1:
+        return None
+    if p % 8 == 3 or p % 8 == 7:
+        return pow(N, (p+1)//4, p)
+    elif p % 8 == 5:
+        x = pow(N, (p+3) // 8, p)
+        c = (x*x) % p
+        if (c % p != N % p):
+            x *= pow(2, (p-1)//4, p)
+            x %= p
+        return x
+    else:
+        d = 2
+        while legendre(d, p) != -1:
+            d = randint(2, p-1)
+        s, t = extract_power_of_2(p-1)
+        A = pow(N,t,p)
+        D = pow(d,t,p)
+        m = 0
+        for i in range(s):
+            if pow(A * pow(D,m,p), pow(2, s-1-i), p) == p-1:
+                m += pow(2, i)
+        x = pow(N, (t+1)//2, p) * pow(D, m // 2, p)
+        x %= p
+        return x
+
 
 def is_perfect_power(N: int, n: int) -> bool:
      # Returns whether or not there exists an x s.t. N = x^n
@@ -117,6 +125,15 @@ def is_perfect_power(N: int, n: int) -> bool:
           return (lo, hi)
      lo, hi = _integer_root(N, n)
      return pow(lo, n) == N or pow(hi, n) == N
+
+def isqrt(N):
+    if not GMPY_IMPORT:
+        from math import isqrt
+        return isqrt(N)
+    else:
+        from gmpy2 import isqrt
+        return isqrt(N)
+
 
 # Simple utility class to represent integers mod prime
 
