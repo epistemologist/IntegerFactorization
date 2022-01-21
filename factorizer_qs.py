@@ -70,7 +70,7 @@ class QuadraticSieve(Factorizer):
                 x = int(x)
                 candidate = (x+chunk_start)*(x+chunk_start) - N
                 factorization = _is_smooth(candidate)
-                if factorization is not None: candidates_out[candidate] = factorization
+                if factorization is not None: candidates_out[x+chunk_start] = factorization.to_dict()
             return candidates_out
 
         candidates = dict() # dict of {x: x^2 - N} s.t. x^2-N is smooth
@@ -86,7 +86,7 @@ class QuadraticSieve(Factorizer):
             candidates = OrderedDict([(c, candidates[c]) for c in sample(list(candidates), len(primes)+1)])
             exponent_vectors = []
             for c in candidates:
-                factorization = candidates[c].to_dict()
+                factorization = candidates[c]
                 exponent_vectors.append([factorization[p] % 2 for p in primes ])
             # Inspired by https://github.com/mikolajsawicki/quadratic-sieve/blob/main/quadratic_sieve/fast_gauss.py
             # Also referred to https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
@@ -127,6 +127,7 @@ class QuadraticSieve(Factorizer):
             def _sqrt_prod( nums: List[FactorList] ) -> FactorList:
                 out = defaultdict(int)
                 for n in nums:
+                    n = n.to_dict()
                     for p in n:
                         out[p] += n[p]
                 if any([i % 2 != 0 for i in out.values()]): raise ValueError("not perfect square!")
@@ -134,10 +135,10 @@ class QuadraticSieve(Factorizer):
             x = prod(x_s)
             y = _sqrt_prod(y_s).prod()
             d = gcd(x-y, N)
-            if d != 1:
-                return d
+            if d != 1 and d != N:
+                return d, N//d
             else:
-                print("d == 1, trying again...")
+                print("Found trivial factorization, trying again...")
 
 N = 8754660968220887821
 # N = 1413409093
