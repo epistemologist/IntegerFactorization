@@ -6,6 +6,7 @@ from itertools import count
 from typing import Optional, List
 from math import prod, gcd
 from random import sample
+from numba import njit
 
 from factorizer_abstract import Factorizer, FactorList
 from utility import get_primes, legendre, tonelli_shanks, isqrt
@@ -92,11 +93,12 @@ class QuadraticSieve(Factorizer):
             # Also referred to https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
             M = np.vstack(exponent_vectors)
             print(f"M: {M}")
+            @njit()
             def _to_rref(M):
                 n,m = M.shape
                 marked = []
                 for j in range(m):
-                    print(j)
+                    if j % (m // 100) == 0: print(j, m)
                     i = 0
                     while i < n and M[i,j] != 1:
                         i += 1
@@ -127,7 +129,6 @@ class QuadraticSieve(Factorizer):
             def _sqrt_prod( nums: List[FactorList] ) -> FactorList:
                 out = defaultdict(int)
                 for n in nums:
-                    n = n.to_dict()
                     for p in n:
                         out[p] += n[p]
                 if any([i % 2 != 0 for i in out.values()]): raise ValueError("not perfect square!")
@@ -140,6 +141,10 @@ class QuadraticSieve(Factorizer):
             else:
                 print("Found trivial factorization, trying again...")
 
-N = 8754660968220887821
+from Crypto.Util.number import getPrime
+
+k = 64
+N = getPrime(k) * getPrime(k)
+
+print(QuadraticSieve(N).factor())
 # N = 1413409093
-x_s, y_s = QuadraticSieve(N).factor()
