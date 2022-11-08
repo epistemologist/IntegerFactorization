@@ -1,6 +1,7 @@
 from math import log, sqrt
 from typing import List, Tuple
 from random import randint
+from time import time
 import prime_sieve as sieve
 
 try:
@@ -195,3 +196,13 @@ ModN.__mul__ = _create_internal_fn(lambda s,o: ModN((s.n * o.n) % s.p,s.p))
 ModN.__rmul__ = _create_internal_fn(lambda s,o: ModN((o.n * s.n) % s.p,s.p))
 ModN.__truediv__ = _create_internal_fn(lambda s,o: ModN((s.n * inv(o.n, s.p)) % s.p,s.p))
 ModN.__rtruediv__ = _create_internal_fn(lambda s,o: ModN((o.n * inv(s.n, s.p) % s.p,s.p)))
+
+# Utility timer class, used for profiling
+class Timer:
+    def __init__(self):
+        self.time = time()
+    def __call__(self):
+        curr_time = time()
+        delta = curr_time - self.time
+        self.time = time()
+        return delta
