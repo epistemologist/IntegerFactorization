@@ -1,5 +1,6 @@
 import pdb
 import numpy as np
+import bottleneck as bn
 from collections import defaultdict, OrderedDict
 from tqdm import tqdm
 from itertools import count
@@ -78,7 +79,7 @@ class QuadraticSieve(Factorizer):
                     sieve[ ((-chunk_start + root) % p)::p ] -= np.log(p)
                 for root in square_root_p_squared[p]:
                     sieve[((-chunk_start + root) % p*p) :: p*p] -= np.log(p)
-            candidate_indices = np.argpartition(sieve, CANDIDATE_LENGTH)[:CANDIDATE_LENGTH]
+            candidate_indices = bn.argpartition(sieve, CANDIDATE_LENGTH)[:CANDIDATE_LENGTH]
             candidates_out = dict()
             for x in candidate_indices:
                 x = int(x)
