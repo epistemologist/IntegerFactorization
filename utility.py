@@ -158,7 +158,7 @@ def inv(n,p):
     try:
         return _inv(n,p)
     except:
-        raise InversionError(n<Plug>PeepOpen)
+        raise InversionError(n, p)
 
 def _create_internal_fn(func):
     def wrapped(self, other):
