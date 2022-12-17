@@ -3,12 +3,7 @@ from collections import defaultdict, Counter
 from typing import List
 from math import prod
 
-from utility import is_prime
-
-try:
-    from gmpy2 import mpz as _int
-except:
-    _int = int
+from utility import is_prime, Int
 
 class FactorList:
     def __init__(self, l):
@@ -34,7 +29,7 @@ class FactorList:
         return defaultdict(int, self.factor_list)
 class Factorizer(ABC):
     def __init__(self, N):
-        self.N = _int(N)
+        self.N = Int(N)
 
     @abstractmethod
     def factor(self, **args) -> FactorList:

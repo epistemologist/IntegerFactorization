@@ -3,14 +3,22 @@ from typing import List, Tuple
 from random import randint
 from time import time
 import prime_sieve as sieve
+from Crypto.Util.number import getPrime
 
 try:
     import gmpy2
     GMPY_IMPORT = True
     Int = lambda n: gmpy2.mpz(int(n))
+    isqrt = gmpy2.isqrt
+    gcd = gmpy2.gcd
+    _inv = gmpy2.invert
 except:
+    import math
     GMPY_IMPORT = False
     Int = int
+    isqrt = math.isqrt
+    gcd = math.gcd
+    _inv = lambda a,p: pow(a, -1, p)
 
 def get_primes(N: int) -> List[int]:
     # Returns all primes p such that 1 < p <= N
@@ -146,18 +154,11 @@ class InversionError(Exception):
         self.p = p
         super().__init__(f"given n ({n}) is not invertible given base {p}")
 
-def inv(n, p):
-    if not GMPY_IMPORT:
-        try:
-            return pow(n, -1, p)
-        except:
-            raise InversionError(n, p)
-    else:
-        import gmpy2
-        try:
-            return gmpy2.invert(n, p)
-        except:
-            raise InversionError(n, p)
+def inv(n,p):
+    try:
+        return _inv(n,p)
+    except:
+        raise InversionError(n<Plug>PeepOpen)
 
 def _create_internal_fn(func):
     def wrapped(self, other):
@@ -187,6 +188,13 @@ class ModN:
         return hash(self.n)
     def __int__(self):
         return int(self.n)
+    def sqrt(self, prove_prime = False, all_roots = False):
+        if prove_prime and not is_prime(self.p):
+            raise ValueError("modulus is not prime!")
+        if legendre(self.n, self.p) != 1:
+            raise ValueError("square root does not exist!")
+        root = ModN(tonelli_shanks(self.n, self.p), self.p)
+        return [root, -1*root] if all_roots else root
 
 ModN.__add__ = _create_internal_fn(lambda s,o: ModN((s.n + o.n) % s.p,s.p))
 ModN.__radd__ = _create_internal_fn(lambda s,o: ModN((o.n + s.n) % s.p,s.p))
@@ -206,3 +214,6 @@ class Timer:
         delta = curr_time - self.time
         self.time = time()
         return delta
+
+def get_semiprime(num_bits):
+    return getPrime(num_bits) * getPrime(num_bits)
