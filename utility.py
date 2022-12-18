@@ -30,6 +30,9 @@ def get_primes(N: int) -> List[int]:
         s.get_primes()
         return [i for i in s.primes if i <= N]
 
+def count_primes(N: int) -> int:
+    return len(get_primes(N))
+
 def extract_power_of_2(N: int) -> Tuple[int, int]:
     # Given N, this function returns integers k,d such that 2^k * d == N
     k = 0

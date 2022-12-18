@@ -1,36 +1,21 @@
-"""
-from collections import defaultdict
-from utility import get_primes
-from tqdm import tqdm
+from factorizer_qs_v2 import *
+from utility import get_semiprime, get_primes, isqrt
+from random import randint
+from factorizer_pollard_rho import PollardRho
 
-B1 = 10000
-B2 = 50000
-D = 100
+N = get_semiprime(48)
+B = 10**6
 
-primes = get_primes(B2 + 2*D)
-prime_map = {r: [q for q in primes if r+2 <= q <= r+2*D] for r in range(B1-1, B2, 2*D) }
 
-r_s = iter(range(B1-1, B2, 2*D))
-prime_map2 = defaultdict(list)
+p1 = Polynomial(1, 0, -N)
+factor_base1 = {p for p in get_primes(B) if p1.mod_roots(p)}
 
-r = next(r_s)
+# Polynomial f(x) = a x^2 + 2 b x + c s.t. b^2 - a c = n
 
-for p in tqdm(primes):
-    if r+2 <= p <= r+2*D:
-        prime_map2[r].append(p)
-    else:
-        r = next(r_s)
-"""
+b = (isqrt(N) + 100)
+a, c = list(PollardRho(b**2 - N).factor().factor_list)
 
-from utility import tonelli_shanks
+p2 = Polynomial(a, 2*b, c)
+factor_base2 = {p for p in get_primes(B) if p2.mod_roots(p)}
 
-def sqrt_mod_p_squared(n, p):
-    # Based on https://mathoverflow.net/a/223806
-    x = tonelli_shanks(n, p)
-    if x is None:
-        return None
-    roots = []
-    for root in [x, -x%p]:
-        roots.append((pow(root, p, p*p) * pow(n, (p*p-p+1) // 2, p*p)) % (p*p))
-    return roots
-
+print(factor_base1 == factor_base2)
