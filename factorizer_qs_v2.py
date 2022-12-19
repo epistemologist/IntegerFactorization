@@ -1,11 +1,13 @@
 from factorizer_abstract import Factorizer
 from dataclasses import dataclass
-from utility import Int, ModN, tonelli_shanks, get_primes, legendre, isqrt, count_primes
+from utility import Int, ModN, tonelli_shanks, get_primes, legendre, isqrt, gcd
 from typing import *
 from itertools import count
 from tqdm import tqdm
+from math import prod
 
 import numpy as np
+import galois
 import pdb
 
 @dataclass
@@ -32,6 +34,7 @@ class Polynomial:
             r2 = (-1*b - d) / (2*a)
             return {int(r1), int(r2)}
 
+
 """ Factor base utility class used to hold information for sieving  """
 class FactorBase:
     def __init__(self, poly: Polynomial, prime_base: List[int]):
@@ -40,11 +43,18 @@ class FactorBase:
             p: poly.mod_roots(p) for p in prime_base if poly.mod_roots(p) # Ignoring the 2 in prime_base
         }
 
+"""Given matrix M over F_2, give a list of its rows s.t. sum of rows equals 0"""
+def get_null_space(M: np.array) -> List[int]:
+    # Default to using Galois for right now
+    # TODO: Implement faster algorithm
+    null_space_vector = galois.GF2(M).T.null_space()[0]
+    return [n for n,i in enumerate(null_space_vector) if i]
+
 class QuadraticSieve(Factorizer):
 
-    def factor(self, use_mpqs = False, B = 100, chunk_size = 10**2):
+    def factor(self, use_mpqs = False, B = 1000, chunk_size = 10**6):
         N = self.N
-        prime_base = [2] + [p for p in get_primes(B) if legendre(N, p) == 1]
+        prime_base = [2] + [p for p in get_primes(B) if p > 2 and legendre(N, p) == 1]
         """ Get values of x s.t. p(x) is smooth via a segmented sieve  """
         def _gen_candidates(factor_base: FactorBase, chunk_start: int, chunk_size: int, use_mpqs: bool):
             candidates = []
@@ -58,18 +68,21 @@ class QuadraticSieve(Factorizer):
             for i in np.argpartition(sieve_chunk, -10)[-10:]:
                 X = chunk_start + i
                 val = factor_base.poly.eval(X)
-                exponent_vector = np.zeros(shape = (len(prime_base), ), dtype=bool)
-                tmp = val
-                for i, p in enumerate(prime_base):
-                    while tmp % p == 0:
-                        tmp //= p
-                        exponent_vector[i] += 1
-                if tmp == 1:
+                exponent_vector = _get_exponent_vector(val)
+                if exponent_vector is not None:
                     if use_mpqs:
                         raise NotImplementedError()
                     else:
-                        candidates.append((val, exponent_vector))
+                        candidates.append((X, val, exponent_vector))
             return candidates
+        def _get_exponent_vector(N: Int) -> Optional[np.array]:
+            tmp = N
+            exponent_vector = np.zeros(shape = (len(prime_base),), dtype = int)
+            for i, p in enumerate(prime_base):
+                while tmp % p == 0:
+                    tmp //= p
+                    exponent_vector[i] += 1
+            return None if tmp != 1 else exponent_vector
         def _poly_iterator():
             if not use_mpqs:
                 poly = Polynomial(1, 0, -N)
@@ -78,16 +91,23 @@ class QuadraticSieve(Factorizer):
                     yield (factor_base, isqrt(N) + i*chunk_size, chunk_size, False)
             else:
                 raise NotImplementedError()
-        smooth_vals = []
+        # Generate smooth candidates
+        candidates = []
         for args in _poly_iterator():
-            print(args, len(smooth_vals))
-            smooth_vals.extend(_gen_candidates(*args))
-            if len(smooth_vals) > len(prime_base):
+            print(args, len(candidates))
+            candidates.extend(_gen_candidates(*args))
+            if len(candidates) > len(prime_base):
                 break
-        return smooth_vals
+        # Linear algebra
+        M = np.vstack(i[2] for i in candidates).astype(np.uint32) % 2
+        candidates = [candidates[i] for i in get_null_space(M)]
+        # Factor
+        x = prod([i[0] for i in candidates])
+        y = prod([Int(p**e) for p,e in zip(prime_base, sum([i[2] for i in candidates]) // 2 )])
+        return gcd(x-y, N)
 
 from utility import get_semiprime
 
-N = 1593004271
+N = get_semiprime(16)
 
-print(QuadraticSieve(N).factor())
+out = QuadraticSieve(N).factor()
