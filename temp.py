@@ -1,21 +1,27 @@
-from factorizer_qs_v2 import *
-from utility import get_semiprime, get_primes, isqrt
-from random import randint
-from factorizer_pollard_rho import PollardRho
-
-N = get_semiprime(48)
-B = 10**6
+from multiprocessing import Pool
+from itertools import count
+from random import random
 
 
-p1 = Polynomial(1, 0, -N)
-factor_base1 = {p for p in get_primes(B) if p1.mod_roots(p)}
+def gen_args():
+    for i in count(1):
+        yield i
 
-# Polynomial f(x) = a x^2 + 2 b x + c s.t. b^2 - a c = n
+def f(x):
+    if random() < 0.3:
+        return [x**2]
+    else:
+        return None
 
-b = (isqrt(N) + 100)
-a, c = list(PollardRho(b**2 - N).factor().factor_list)
+out = []
+with Pool(processes=2) as p:
+    for result in p.imap_unordered(f, gen_args()):
+        print(len(out))
+        if result:
+            out.extend(result)
+        if len(out) > 1000:
+            p.terminate()
+            break
 
-p2 = Polynomial(a, 2*b, c)
-factor_base2 = {p for p in get_primes(B) if p2.mod_roots(p)}
+print(out)
 
-print(factor_base1 == factor_base2)
